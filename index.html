@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>高级手势绘画板 - 流畅轨迹优化版</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap"
+      rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons"
+      rel="stylesheet" />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: "Roboto", sans-serif;
+      }
+
+      body {
+        background: linear-gradient(135deg, #1a2a6c, #2c3e50, #1a2a6c);
+        color: #fff;
+        min-height: 100vh;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        position: relative;
+        overflow-x: hidden;
+      }
+
+      header {
+        text-align: center;
+        padding: 20px 0;
+        width: 100%;
+        max-width: 1000px;
+        margin: 0 auto 20px;
+      }
+
+      h1 {
+        font-size: 2.8rem;
+        margin-bottom: 10px;
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        background: linear-gradient(to right, #ff7e5f, #feb47b);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      .subtitle {
+        font-size: 1.3rem;
+        opacity: 0.9;
+        margin-top: 10px;
+        color: #e0e0e0;
+      }
+
+      .container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+        max-width: 1200px;
+        gap: 30px;
+      }
+
+      .camera-container {
+        width: 100%;
+        max-width: 800px;
+        background: rgba(25, 25, 35, 0.85);
+        border-radius: 20px;
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+        padding: 25px;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .camera-header {
+        text-align: center;
+        margin-bottom: 20px;
+      }
+
+      .camera-header h2 {
+        font-size: 1.8rem;
+        color: #4facfe;
+        margin-bottom: 10px;
+      }
+
+      .camera-view {
+        position: relative;
+        width: 100%;
+        height: 350px;
+        background: #000;
+        border-radius: 15px;
+        overflow: hidden;
+        margin-bottom: 20px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .camera-view video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transform: scaleX(-1); /* 修复视频镜像问题 */
+      }
+
+      #cameraPlaceholder {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: #000;
+      }
+
+      .gesture-output {
+        background: rgba(20, 20, 30, 0.9);
+        border-radius: 15px;
+        padding: 20px;
+        text-align: center;
+        font-size: 1.3rem;
+        min-height: 100px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.4);
+        border: 1px solid #4facfe;
+      }
+
+      .gesture-name {
+        font-size: 1.8rem;
+        font-weight: bold;
+        color: #feb47b;
+        margin-bottom: 10px;
+      }
+
+      .gesture-desc {
+        color: #a0a0c0;
+        font-size: 1.1rem;
+      }
+
+      .controls {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 15px;
+        margin-top: 20px;
+      }
+
+      .control-btn {
+        background: linear-gradient(to right, #4facfe, #00f2fe);
+        color: white;
+        border: none;
+        border-radius: 50px;
+        padding: 14px 25px;
+        font-size: 1.1rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .control-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+      }
+
+      .control-btn:active {
+        transform: translateY(1px);
+      }
+
+      .mode-indicator {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 20px;
+        border-radius: 50px;
+        background: rgba(79, 172, 254, 0.3);
+        font-size: 1.1rem;
+      }
+
+      .canvas-container {
+        background: rgba(25, 25, 35, 0.85);
+        border-radius: 20px;
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+        padding: 25px;
+        width: 100%;
+        max-width: 1000px;
+        margin-top: 10px;
+      }
+
+      .canvas-header {
+        text-align: center;
+        margin-bottom: 20px;
+      }
+
+      .canvas-header h2 {
+        font-size: 1.8rem;
+        color: #00f2fe;
+        margin-bottom: 10px;
+      }
+
+      #drawingCanvas {
+        width: 100%;
+        height: 400px;
+        background: #121212;
+        border-radius: 15px;
+        cursor: none;
+        position: relative;
+      }
+
+      .cursor {
+        position: absolute;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: rgba(255, 126, 95, 0.8);
+        pointer-events: none;
+        transform: translate(-50%, -50%);
+        z-index: 10;
+        display: none;
+      }
+
+      .canvas-instructions {
+        margin-top: 20px;
+        text-align: center;
+        color: #a0a0c0;
+        font-size: 1.1rem;
+      }
+
+      .tools-panel {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 15px;
+        margin-top: 20px;
+      }
+
+      .color-picker {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .color-label {
+        color: #a0a0c0;
+      }
+
+      .brush-size {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .gesture-effect {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 10rem;
+        z-index: 1000;
+        pointer-events: none;
+        opacity: 0;
+        animation: gestureEffect 1.2s ease-out forwards;
+        text-shadow: 0 0 20px rgba(255, 255, 255, 0.7);
+      }
+
+      @keyframes gestureEffect {
+        0% {
+          opacity: 0;
+          transform: translate(-50%, -50%) scale(0.5);
+        }
+        50% {
+          opacity: 1;
+          transform: translate(-50%, -50%) scale(1.2);
+        }
+        100% {
+          opacity: 0;
+          transform: translate(-50%, -50%) scale(1.5);
+        }
+      }
+
+      .instructions {
+        background: rgba(25, 25, 35, 0.85);
+        border-radius: 20px;
+        padding: 25px;
+        margin-top: 30px;
+        width: 100%;
+        max-width: 1000px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+      }
+
+      .instructions h2 {
+        text-align: center;
+        margin-bottom: 25px;
+        color: #00f2fe;
+        font-size: 2rem;
+      }
+
+      .gesture-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+      }
+
+      .gesture-card {
+        background: rgba(30, 30, 45, 0.7);
+        border-radius: 15px;
+        padding: 20px;
+        text-align: center;
+        transition: all 0.3s ease;
+        border: 1px solid #4facfe;
+      }
+
+      .gesture-card:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+        background: rgba(40, 40, 60, 0.9);
+      }
+
+      .gesture-symbol {
+        font-size: 4rem;
+        margin-bottom: 15px;
+        height: 80px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .gesture-card h3 {
+        font-size: 1.4rem;
+        color: #ff7e5f;
+        margin-bottom: 10px;
+      }
+
+      .gesture-card p {
+        color: #b0b0d0;
+        font-size: 1.1rem;
+      }
+
+      footer {
+        text-align: center;
+        padding: 30px 0 20px;
+        color: rgba(255, 255, 255, 0.6);
+        font-size: 1rem;
+        width: 100%;
+        margin-top: 30px;
+      }
+
+      @media (max-width: 900px) {
+        .container {
+          flex-direction: column;
+          align-items: center;
+        }
+
+        .canvas-container,
+        .camera-container {
+          min-width: 90%;
+        }
+      }
+
+      @media (max-width: 600px) {
+        .camera-view {
+          height: 300px;
+        }
+
+        #drawingCanvas {
+          height: 350px;
+        }
+
+        .gesture-symbol {
+          font-size: 3rem;
+          height: 60px;
+        }
+
+        .gesture-card h3 {
+          font-size: 1.2rem;
+        }
+
+        .control-btn {
+          padding: 12px 20px;
+          font-size: 1rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>高级手势绘画板</h1>
+      <p class="subtitle">流畅轨迹优化版 - 解决抖动与延迟问题</p>
+    </header>
+
+    <div class="container">
+      <div class="camera-container">
+        <div class="camera-header">
+          <h2>手势识别控制台</h2>
+          <p>启用摄像头开始手势控制</p>
+        </div>
+
+        <div class="camera-view">
+          <video id="webcam" autoplay playsinline></video>
+          <div id="cameraPlaceholder">
+            <i class="material-icons" style="font-size: 4rem; color: #4facfe"
+              >videocam_off</i
+            >
+            <p style="margin-top: 15px; color: #a0a0c0">摄像头未启用</p>
+          </div>
+        </div>
+
+        <div id="gesture_output" class="gesture-output">
+          <div class="gesture-name">等待手势识别</div>
+          <div class="gesture-desc">请启用摄像头并做出手势</div>
+        </div>
+
+        <div class="controls">
+          <button id="webcamButton" class="control-btn">
+            <i class="material-icons">videocam</i> 启用摄像头
+          </button>
+          <button id="clearCanvasBtn" class="control-btn">
+            <i class="material-icons">clear</i> 清除画布
+          </button>
+          <button id="undoBtn" class="control-btn">
+            <i class="material-icons">undo</i> 撤销一步
+          </button>
+          <div class="mode-indicator">
+            <i class="material-icons">edit</i>
+            <span id="modeText">自由绘制模式</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="canvas-container">
+        <div class="canvas-header">
+          <h2>手势绘画区域</h2>
+          <p>使用食指在空中绘画，轨迹将显示在画布上</p>
+        </div>
+
+        <canvas id="drawingCanvas"></canvas>
+        <div id="cursor" class="cursor"></div>
+
+        <div class="tools-panel">
+          <div class="color-picker">
+            <span class="color-label">画笔颜色:</span>
+            <input type="color" id="colorPicker" value="#ff7e5f" />
+          </div>
+
+          <div class="brush-size">
+            <span class="color-label">画笔大小:</span>
+            <input type="range" id="brushSize" min="1" max="20" value="5" />
+            <span id="brushSizeValue">5px</span>
+          </div>
+        </div>
+
+        <div class="canvas-instructions">
+          <p>手势说明：</p>
+          <p>
+            👆 食指向下：绘画 | ✋ 手掌张开：清除画布 | ✌️ 胜利手势：直线模式 |
+            👍 点赞手势：撤销
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="instructions">
+      <h2>优化方案说明</h2>
+      <div class="gesture-grid">
+        <div class="gesture-card">
+          <div class="gesture-symbol">📉</div>
+          <h3>轨迹抖动优化</h3>
+          <p>使用移动平均算法平滑轨迹</p>
+          <p><small>减少手指抖动影响</small></p>
+        </div>
+
+        <div class="gesture-card">
+          <div class="gesture-symbol">⚡</div>
+          <h3>延迟优化</h3>
+          <p>优化绘制逻辑与识别频率</p>
+          <p><small>使用路径绘制而非线段</small></p>
+        </div>
+
+        <div class="gesture-card">
+          <div class="gesture-symbol">📐</div>
+          <h3>直线模式</h3>
+          <p>Victory手势进入直线绘制</p>
+          <p><small>两点确定一条直线</small></p>
+        </div>
+
+        <div class="gesture-card">
+          <div class="gesture-symbol">↩️</div>
+          <h3>撤销功能</h3>
+          <p>点赞手势撤销上一步操作</p>
+          <p><small>支持多级撤销</small></p>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      <p>高级手势绘画板 | 解决抖动与延迟问题 | 基于MediaPipe手势识别技术</p>
+    </footer>
+
+    <script type="module">
+      // 引入MediaPipe手势识别库
+      import {
+        GestureRecognizer,
+        FilesetResolver,
+      } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest";
+
+      // DOM元素引用
+      const gestureOutput = document.getElementById("gesture_output");
+      const webcamButton = document.getElementById("webcamButton");
+      const videoElement = document.getElementById("webcam");
+      const cameraPlaceholder = document.getElementById("cameraPlaceholder");
+      const clearCanvasBtn = document.getElementById("clearCanvasBtn");
+      const undoBtn = document.getElementById("undoBtn");
+      const brushSize = document.getElementById("brushSize");
+      const brushSizeValue = document.getElementById("brushSizeValue");
+      const colorPicker = document.getElementById("colorPicker");
+      const modeText = document.getElementById("modeText");
+      const cursor = document.getElementById("cursor");
+
+      // 获取画布和上下文
+      const canvas = document.getElementById("drawingCanvas");
+      const ctx = canvas.getContext("2d");
+
+      // 全局变量
+      let gestureRecognizer;
+      let webcamRunning = false;
+      let lastGesture = "";
+      let lastDetectionTime = 0;
+      let isDrawing = false;
+      let brushColor = "#ff7e5f";
+      let brushWidth = 5;
+      let isStraightLineMode = false;
+      let straightLineStart = null;
+      let lastPoints = []; // 用于轨迹平滑
+      let drawHistory = []; // 用于撤销功能
+      let currentPath = null; // 当前绘制路径
+
+      // 设置画布尺寸
+      function setupCanvas() {
+        canvas.width = canvas.offsetWidth;
+        canvas.height = canvas.offsetHeight;
+        ctx.lineWidth = brushWidth;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.strokeStyle = brushColor;
+
+        // 保存初始状态
+        saveCanvasState();
+
+        // 绘制初始说明
+        ctx.font = "24px Roboto";
+        ctx.fillStyle = "#a0a0c0";
+        ctx.textAlign = "center";
+        ctx.fillText(
+          "请启用摄像头并做出👆手势开始绘画",
+          canvas.width / 2,
+          canvas.height / 2
+        );
+      }
+
+      // 初始化画布
+      setupCanvas();
+      window.addEventListener("resize", setupCanvas);
+
+      // 保存画布状态（用于撤销）
+      function saveCanvasState() {
+        drawHistory.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+        // 限制历史记录数量
+        if (drawHistory.length > 20) {
+          drawHistory.shift();
+        }
+      }
+
+      // 撤销上一步操作
+      function undo() {
+        if (drawHistory.length > 1) {
+          drawHistory.pop(); // 移除当前状态
+          const prevState = drawHistory[drawHistory.length - 1];
+          ctx.putImageData(prevState, 0, 0);
+          showGestureEffect("↩️");
+        }
+      }
+
+      // 清除画布
+      function clearCanvas() {
+        drawHistory = [];
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        setupCanvas();
+        showGestureEffect("✋");
+      }
+
+      // 创建手势识别器
+      async function createGestureRecognizer() {
+        try {
+          const vision = await FilesetResolver.forVisionTasks(
+            "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
+          );
+
+          gestureRecognizer = await GestureRecognizer.createFromOptions(
+            vision,
+            {
+              baseOptions: {
+                modelAssetPath:
+                  "https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task",
+                delegate: "GPU",
+              },
+              runningMode: "VIDEO",
+              numHands: 1,
+            }
+          );
+
+          console.log("手势识别器已加载");
+          gestureOutput.innerHTML = `
+                    <div class="gesture-name">识别器已就绪</div>
+                    <div class="gesture-desc">请启用摄像头开始手势控制</div>
+                `;
+
+          webcamButton.disabled = false;
+          clearCanvasBtn.disabled = false;
+          undoBtn.disabled = false;
+        } catch (error) {
+          console.error("手势识别器创建失败:", error);
+          gestureOutput.innerHTML = `
+                    <div class="gesture-name">识别器加载失败</div>
+                    <div class="gesture-desc">请刷新页面重试</div>
+                `;
+        }
+      }
+
+      // 检查浏览器是否支持摄像头
+      function hasGetUserMedia() {
+        return !!(
+          navigator.mediaDevices && navigator.mediaDevices.getUserMedia
+        );
+      }
+
+      // 添加摄像头启用按钮事件
+      if (hasGetUserMedia()) {
+        webcamButton.addEventListener("click", toggleWebcam);
+        clearCanvasBtn.addEventListener("click", clearCanvas);
+        undoBtn.addEventListener("click", undo);
+      } else {
+        console.warn("您的浏览器不支持摄像头访问");
+        webcamButton.disabled = true;
+        webcamButton.innerHTML =
+          '<i class="material-icons">warning</i> 浏览器不支持摄像头';
+      }
+
+      // 画笔大小调整
+      brushSize.addEventListener("input", () => {
+        brushWidth = brushSize.value;
+        brushSizeValue.textContent = brushWidth + "px";
+        ctx.lineWidth = brushWidth;
+      });
+
+      // 颜色选择器
+      colorPicker.addEventListener("input", () => {
+        brushColor = colorPicker.value;
+        ctx.strokeStyle = brushColor;
+      });
+
+      // 切换摄像头状态
+      async function toggleWebcam() {
+        if (!gestureRecognizer) {
+          alert("手势识别器尚未加载完成，请稍候");
+          return;
+        }
+
+        if (webcamRunning) {
+          // 关闭摄像头
+          stopWebcam();
+          webcamButton.innerHTML =
+            '<i class="material-icons">videocam</i> 启用摄像头';
+          cursor.style.display = "none";
+        } else {
+          // 启用摄像头
+          try {
+            webcamButton.innerHTML =
+              '<i class="material-icons">hourglass_top</i> 正在启动...';
+            await startWebcam();
+            webcamButton.innerHTML =
+              '<i class="material-icons">videocam_off</i> 关闭摄像头';
+            cursor.style.display = "block";
+          } catch (error) {
+            console.error("摄像头启用失败:", error);
+            webcamButton.innerHTML =
+              '<i class="material-icons">videocam</i> 启用摄像头';
+          }
+        }
+      }
+
+      // 启动摄像头
+      async function startWebcam() {
+        try {
+          // 请求摄像头访问权限
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: "user",
+              width: { ideal: 640 },
+              height: { ideal: 480 },
+              frameRate: { ideal: 30 },
+            },
+          });
+
+          videoElement.srcObject = stream;
+          cameraPlaceholder.style.display = "none";
+
+          // 等待视频数据加载
+          await new Promise((resolve) => {
+            videoElement.onloadeddata = resolve;
+          });
+
+          // 开始预测
+          webcamRunning = true;
+          lastDetectionTime = performance.now();
+          predictWebcam();
+        } catch (err) {
+          console.error("摄像头访问错误:", err);
+          if (err.name === "NotAllowedError") {
+            alert("摄像头访问被拒绝。请检查浏览器权限设置并允许访问摄像头。");
+          } else {
+            alert(`无法访问摄像头: ${err.message}`);
+          }
+          throw err;
+        }
+      }
+
+      // 停止摄像头
+      function stopWebcam() {
+        webcamRunning = false;
+        if (videoElement.srcObject) {
+          const tracks = videoElement.srcObject.getTracks();
+          tracks.forEach((track) => track.stop());
+          videoElement.srcObject = null;
+        }
+
+        cameraPlaceholder.style.display = "flex";
+        gestureOutput.innerHTML = `
+                <div class="gesture-name">摄像头已关闭</div>
+                <div class="gesture-desc">点击按钮重新启用</div>
+            `;
+
+        // 重置绘画状态
+        isDrawing = false;
+        isStraightLineMode = false;
+      }
+
+      // 轨迹平滑处理（移动平均）
+      function smoothPoint(newX, newY) {
+        // 添加新点
+        lastPoints.push({ x: newX, y: newY });
+
+        // 限制历史点数量（5个点）
+        if (lastPoints.length > 5) {
+          lastPoints.shift();
+        }
+
+        // 计算平均值
+        let avgX = 0,
+          avgY = 0;
+        for (const point of lastPoints) {
+          avgX += point.x;
+          avgY += point.y;
+        }
+        avgX /= lastPoints.length;
+        avgY /= lastPoints.length;
+
+        return { x: avgX, y: avgY };
+      }
+
+      // 预测摄像头画面
+      async function predictWebcam() {
+        if (!webcamRunning) return;
+
+        // 限制检测频率（每100ms检测一次）
+        const now = performance.now();
+        if (now - lastDetectionTime < 100) {
+          requestAnimationFrame(predictWebcam);
+          return;
+        }
+        lastDetectionTime = now;
+
+        // 开始检测
+        try {
+          // 检测手势
+          const results = await gestureRecognizer.recognizeForVideo(
+            videoElement,
+            Date.now()
+          );
+
+          // 显示手势识别结果并处理交互
+          if (results.gestures.length > 0) {
+            const categoryName = results.gestures[0][0].categoryName;
+            const categoryScore = parseFloat(
+              results.gestures[0][0].score * 100
+            ).toFixed(2);
+
+            gestureOutput.innerHTML = `
+                        <div class="gesture-name">${categoryName}</div>
+                        <div class="gesture-desc">置信度: ${categoryScore}%</div>
+                    `;
+
+            // 处理手势交互
+            if (lastGesture !== categoryName) {
+              handleGestureInteraction(categoryName);
+              lastGesture = categoryName;
+            }
+
+            // 处理绘画逻辑
+            if (results.landmarks && results.landmarks.length > 0) {
+              const landmarks = results.landmarks[0];
+              if (landmarks.length >= 9) {
+                // 确保有足够的关节点
+                const indexFingerTip = landmarks[8]; // 食指指尖
+
+                // 关键修复：镜像翻转坐标点
+                const rawX = canvas.width - indexFingerTip.x * canvas.width;
+                const rawY = indexFingerTip.y * canvas.height;
+
+                // 轨迹平滑处理
+                const { x, y } = smoothPoint(rawX, rawY);
+
+                // 更新光标位置
+                cursor.style.left = `${x}px`;
+                cursor.style.top = `${y}px`;
+
+                if (
+                  categoryName === "Pointing_Up" ||
+                  categoryName === "Victory"
+                ) {
+                  // 开始或继续绘画
+                  if (!isDrawing) {
+                    isDrawing = true;
+                    currentPath = [];
+                    saveCanvasState();
+                  }
+
+                  // 处理不同绘制模式
+                  if (isStraightLineMode) {
+                    // 直线模式
+                    if (!straightLineStart) {
+                      straightLineStart = { x, y };
+                    }
+
+                    // 清除当前画布到历史状态
+                    ctx.putImageData(drawHistory[drawHistory.length - 1], 0, 0);
+
+                    // 绘制起点到当前点的直线
+                    ctx.beginPath();
+                    ctx.moveTo(straightLineStart.x, straightLineStart.y);
+                    ctx.lineTo(x, y);
+                    ctx.stroke();
+                  } else {
+                    // 自由绘制模式
+                    currentPath.push({ x, y });
+
+                    // 使用路径绘制提高性能
+                    if (currentPath.length > 1) {
+                      ctx.putImageData(
+                        drawHistory[drawHistory.length - 1],
+                        0,
+                        0
+                      );
+                      ctx.beginPath();
+                      ctx.moveTo(currentPath[0].x, currentPath[0].y);
+
+                      // 绘制贝塞尔曲线使线条更平滑
+                      for (let i = 1; i < currentPath.length - 2; i++) {
+                        const p1 = currentPath[i];
+                        const p2 = currentPath[i + 1];
+                        const midX = (p1.x + p2.x) / 2;
+                        const midY = (p1.y + p2.y) / 2;
+                        ctx.quadraticCurveTo(p1.x, p1.y, midX, midY);
+                      }
+
+                      // 绘制最后一段
+                      if (currentPath.length >= 2) {
+                        const last = currentPath.length - 1;
+                        const p1 = currentPath[last - 1];
+                        const p2 = currentPath[last];
+                        ctx.lineTo(p2.x, p2.y);
+                      }
+
+                      ctx.stroke();
+                    }
+                  }
+                } else {
+                  // 其他手势停止绘画
+                  if (isDrawing) {
+                    isDrawing = false;
+                    straightLineStart = null;
+
+                    // 保存最终路径
+                    if (currentPath.length > 0) {
+                      saveCanvasState();
+                      currentPath = null;
+                    }
+                  }
+                }
+              }
+            }
+          } else {
+            gestureOutput.innerHTML = `
+                        <div class="gesture-name">未检测到手势</div>
+                        <div class="gesture-desc">请将手放在摄像头前</div>
+                    `;
+            lastGesture = "";
+            isDrawing = false;
+            straightLineStart = null;
+          }
+        } catch (error) {
+          console.error("手势识别错误:", error);
+          gestureOutput.innerHTML = `
+                    <div class="gesture-name">识别出错</div>
+                    <div class="gesture-desc">请重试</div>
+                `;
+          isDrawing = false;
+          straightLineStart = null;
+        }
+
+        // 继续处理
+        requestAnimationFrame(predictWebcam);
+      }
+
+      // 处理手势交互
+      function handleGestureInteraction(gesture) {
+        switch (gesture) {
+          case "Open_Palm": // 手掌张开 - 清除画布
+            clearCanvas();
+            showGestureEffect("✋");
+            break;
+          case "Pointing_Up": // 食指向下 - 开始绘画
+            isStraightLineMode = false;
+            modeText.textContent = "自由绘制模式";
+            showGestureEffect("👆");
+            break;
+          case "Victory": // 胜利手势 - 直线模式
+            isStraightLineMode = true;
+            modeText.textContent = "直线绘制模式";
+            showGestureEffect("✌️");
+            break;
+          case "Thumb_Up": // 点赞手势 - 撤销
+            undo();
+            break;
+          case "Thumb_Down": // 点踩手势 - 随机颜色
+            brushColor = getRandomColor();
+            ctx.strokeStyle = brushColor;
+            colorPicker.value = brushColor;
+            showGestureEffect("👎");
+            break;
+          default:
+            // 其他未定义手势不处理
+            break;
+        }
+      }
+
+      // 获取随机颜色
+      function getRandomColor() {
+        const letters = "0123456789ABCDEF";
+        let color = "#";
+        for (let i = 0; i < 6; i++) {
+          color += letters[Math.floor(Math.random() * 16)];
+        }
+        return color;
+      }
+
+      // 显示手势效果
+      function showGestureEffect(symbol) {
+        const effect = document.createElement("div");
+        effect.className = "gesture-effect";
+        effect.textContent = symbol;
+        document.body.appendChild(effect);
+
+        // 动画结束后移除元素
+        setTimeout(() => {
+          effect.remove();
+        }, 1200);
+      }
+
+      // 初始化手势识别器
+      createGestureRecognizer();
+    </script>
+  </body>
+</html>
